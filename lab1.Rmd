@@ -187,3 +187,74 @@ is_directed(g_class12b)
 plot(g_class12b)
 ```
 
+## five number summary:
+
+### size:
+
+```{r}
+vcount(g_class12b)
+ecount(g_class12b)
+```
+
+### density:
+```{r}
+edge_density(g_class12b)
+```
+
+### components:
+```{r}
+count_components(g_class12b)
+```
+
+### diameter:
+```{r}
+diameter(g_class12b)
+mean_distance(g_class12b)
+```
+
+### clustering:
+```{r}
+transitivity(g_class12b, type="average")
+```
+
+## test the hypothesis that girls have higher degree than boys in this network
+```{r}
+degrees <- degree(g_class12b, mode = "all")
+
+node_data <- data.frame(
+  namenr = V(g_class12b)$name,
+  sex = V(g_class12b)$sex,
+  degree = degrees
+)
+```
+
+```{r}
+boxplot(degree ~ sex, 
+        data = node_data, 
+        main = "Degree Distribution by Gender",
+        xlab = "Sex", 
+        ylab = "Degree",
+        col = c("lightblue", "pink"))
+```
+
+t test: 
+
+```{r}
+t_test_result <- t.test(degree ~ sex, data = node_data)
+print(t_test_result)
+```
+
+We fail to reject the null hypothesis.
+
+### final plot:
+
+```{r}
+node_colors <- ifelse(V(g_class12b)$sex == 1, "skyblue", "salmon")
+node_sizes <- degree(g_class12b, mode = "all") * 2
+plot(g_class12b, 
+     vertex.color = node_colors, 
+     vertex.size = node_sizes,
+     vertex.label = NA,
+     edge.arrow.size = 0.5,
+     main = "Class 12b Friendship Network")
+```
