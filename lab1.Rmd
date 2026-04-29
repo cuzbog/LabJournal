@@ -90,9 +90,100 @@ g_from_elist <- graph_from_data_frame(g_elist)
 plot(g_from_elist)
 ```
 
-**NOTE**: must includde isolate
+**NOTE**: must include isolate
 
 ```{r}
 g_from_elist <- graph_from_data_frame(g_elist, vertices = g_nodes_age) 
 plot(g_from_elist)
 ```
+
+From adjacency list to igraph object
+
+```{r}
+g_adj_list <- read.csv(file = "https://github.com/rensec/sasr08/raw/main/g_adj_list.csv")
+g_adj_list
+g_elist_from_alist <- g_adj_list %>% 
+  select(id, friend1:friend2) %>% # keep only the network variables (and id)
+  melt( id.vars = "id") # from the reshape2 package
+
+g_elist_from_alist <- g_elist_from_alist%>% 
+  filter(!is.na(value)) %>% # drop the missings
+  rename(from ="id", to = "value", sourcevar= "variable") %>% #just nice for interpretation
+  relocate(to, .after=from) #move around the columns
+g_elist_from_alist
+```
+
+**ANSWER**: Keeping `sourcevar` is useful for maintaining the relatioship between the original data and the subsequent quantitative analysis. In other words, it might be important for the theory to know why a certain edge exists.
+
+```{r}
+nodelist <- select(g_adj_list,id,age)
+g_from_alist <- graph_from_data_frame(g_elist_from_alist, vertices = nodelist) #This is a proper igraph graph object
+plot(g_from_alist)
+```
+
+Conversions:
+
+To adjacency matrix:
+
+```{r}
+g_adj_matrix <- as_adjacency_matrix(g, sparse = FALSE)
+g_adj_matrix
+```
+
+To edge list:
+```{r}
+g_edgelist <- igraph::as_data_frame(g_from_elist, what = "edges") 
+g_edgelist 
+```
+
+note: missing isolate
+
+to get nodes:
+
+```{r}
+igraph::as_data_frame(g_from_elist, what = "vertices") 
+```
+
+# Knecht data
+
+```{r}
+library(igraph)
+library(haven) # to read Stata files
+library(reshape2)
+library(tidyverse)
+```
+
+## load data:
+
+```{r}
+PupilsWaveV <- read_dta(file = "PupilsWaveV.dta")
+class12b <- PupilsWaveV %>% 
+  filter(schoolnr == "12b")  # keep only one class
+```
+
+## select variables and into igraph:
+```{r}
+class12b_clean <- class12b %>%
+  select(namenr, age, sex, friend1:friend12)
+  
+
+class12b_elist <- class12b_clean %>%
+  select(namenr, friend1:friend12) %>%
+  melt(id.vars = "namenr") %>%
+  filter(!is.na(value)) %>%
+  rename(from = "namenr", to = "value", sourcevar = "variable") %>%
+  relocate(to, .after = from)
+```
+
+## this is a directed network, but we can check using R:
+
+```{r}
+g_class12b <- graph_from_data_frame(class12b_elist, vertices = class12b_clean)
+is_directed(g_class12b)
+```
+
+## plot:
+```{r}
+plot(g_class12b)
+```
+
