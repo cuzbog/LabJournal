@@ -1,10 +1,7 @@
 ---
 title: "Journal 1"
-#bibliography: references.bib
-author: "Your Name"
+author: "Bogdan Cuza"
 ---
-
-
 
 ```{r, globalsettings, echo=FALSE, warning=FALSE, results='hide'}
 library(knitr)
@@ -12,7 +9,6 @@ library(knitr)
 knitr::opts_chunk$set(echo = TRUE)
 opts_chunk$set(tidy.opts=list(width.cutoff=100),tidy=TRUE, warning = FALSE, message = FALSE,comment = "#>", cache=TRUE, class.source=c("test"), class.output=c("test2"))
 options(width = 100)
-rgl::setupKnitr()
 
 
 
@@ -30,17 +26,16 @@ Last compiled on `r format(Sys.time(), '%B, %Y')`
 
 <br>
 
-----
-  
-This is just an example page of your `r colorize("lab journal", "red")`.
-  
+------------------------------------------------------------------------
 
-----
+# Lab 1 Handling social network data in R
 
+------------------------------------------------------------------------
 
+Loading packages:
 ```{r}
-print("Hello Lab Journal")
+library(network)
+library(igraph)
+library(reshape2)
+library(tidyverse)
 ```
-
-
-
