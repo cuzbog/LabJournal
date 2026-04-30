@@ -1,0 +1,260 @@
+---
+title: "Journal 2"
+author: "Bogdan Cuza"
+---
+
+```{r, globalsettings, echo=FALSE, warning=FALSE, results='hide'}
+library(knitr)
+
+knitr::opts_chunk$set(echo = TRUE)
+opts_chunk$set(tidy.opts=list(width.cutoff=100),tidy=TRUE, warning = FALSE, message = FALSE,comment = "#>", cache=TRUE, class.source=c("test"), class.output=c("test2"))
+options(width = 100)
+
+
+
+colorize <- function(x, color) {sprintf("<span style='color: %s;'>%s</span>", color, x) }
+
+```
+
+```{r klippy, echo=FALSE, include=TRUE}
+klippy::klippy(position = c('top', 'right'))
+#klippy::klippy(color = 'darkred')
+#klippy::klippy(tooltip_message = 'Click to copy', tooltip_success = 'Done')
+```
+
+Last compiled on `r format(Sys.time(), '%B, %Y')`
+
+<br>
+
+------------------------------------------------------------------------
+
+# Lab 2 Networks as causes: Spatial regression analysis
+
+------------------------------------------------------------------------
+
+Loading packages:
+```{r}
+library(network)
+library(igraph)
+library(reshape2)
+library(tidyverse)
+```
+
+Loading data:
+```{r}
+url1 <- "https://github.com/rensec/sasr08/raw/main/g_adj_matrix_simple.csv"
+g_matrix <- read.csv(file = url1, header = FALSE)
+g_matrix
+```
+
+Convert to matrix:
+```{r}
+g_matrix <- as.matrix(g_matrix)
+g_matrix
+```
+
+```{r}
+rownames(g_matrix) <- 1:nrow(g_matrix)
+colnames(g_matrix) <- 1:ncol(g_matrix)
+g_matrix
+```
+
+**ANSWER**: There are 5 nodes, and 4 edges.
+
+Retrieve additional information
+```{r}
+g_nodes_age <- read.csv(file = "https://github.com/rensec/sasr08/raw/main/g_nodes_age.csv")
+g_nodes_age
+```
+
+Convert to igraph object:
+```{r}
+g <- graph_from_adjacency_matrix(g_matrix)
+class(g)
+g
+```
+
+Add attributes and plot:
+```{r}
+g <- set_vertex_attr(g, 
+                     name = "age",
+                     value = g_nodes_age$age)
+plot(g)
+```
+
+Also with edge list:
+```{r}
+g_elist <- read.csv(file = "https://github.com/rensec/sasr08/raw/main/g_elist.csv")
+g_elist
+g_from_elist <- graph_from_data_frame(g_elist) 
+plot(g_from_elist)
+```
+
+**NOTE**: must include isolate
+
+```{r}
+g_from_elist <- graph_from_data_frame(g_elist, vertices = g_nodes_age) 
+plot(g_from_elist)
+```
+
+From adjacency list to igraph object
+
+```{r}
+g_adj_list <- read.csv(file = "https://github.com/rensec/sasr08/raw/main/g_adj_list.csv")
+g_adj_list
+g_elist_from_alist <- g_adj_list %>% 
+  select(id, friend1:friend2) %>% # keep only the network variables (and id)
+  melt( id.vars = "id") # from the reshape2 package
+
+g_elist_from_alist <- g_elist_from_alist%>% 
+  filter(!is.na(value)) %>% # drop the missings
+  rename(from ="id", to = "value", sourcevar= "variable") %>% #just nice for interpretation
+  relocate(to, .after=from) #move around the columns
+g_elist_from_alist
+```
+
+**ANSWER**: Keeping `sourcevar` is useful for maintaining the relatioship between the original data and the subsequent quantitative analysis. In other words, it might be important for the theory to know why a certain edge exists.
+
+```{r}
+nodelist <- select(g_adj_list,id,age)
+g_from_alist <- graph_from_data_frame(g_elist_from_alist, vertices = nodelist) #This is a proper igraph graph object
+plot(g_from_alist)
+```
+
+Conversions:
+
+To adjacency matrix:
+
+```{r}
+g_adj_matrix <- as_adjacency_matrix(g, sparse = FALSE)
+g_adj_matrix
+```
+
+To edge list:
+```{r}
+g_edgelist <- igraph::as_data_frame(g_from_elist, what = "edges") 
+g_edgelist 
+```
+
+note: missing isolate
+
+to get nodes:
+
+```{r}
+igraph::as_data_frame(g_from_elist, what = "vertices") 
+```
+
+# Knecht data
+
+```{r}
+library(igraph)
+library(haven) # to read Stata files
+library(reshape2)
+library(tidyverse)
+```
+
+## load data:
+
+```{r}
+PupilsWaveV <- read_dta(file = "PupilsWaveV.dta")
+class12b <- PupilsWaveV %>% 
+  filter(schoolnr == "12b")  # keep only one class
+```
+
+## select variables and into igraph:
+```{r}
+class12b_clean <- class12b %>%
+  select(namenr, age, sex, friend1:friend12)
+  
+
+class12b_elist <- class12b_clean %>%
+  select(namenr, friend1:friend12) %>%
+  melt(id.vars = "namenr") %>%
+  filter(!is.na(value)) %>%
+  rename(from = "namenr", to = "value", sourcevar = "variable") %>%
+  relocate(to, .after = from)
+```
+
+## this is a directed network, but we can check using R:
+
+```{r}
+g_class12b <- graph_from_data_frame(class12b_elist, vertices = class12b_clean)
+is_directed(g_class12b)
+```
+
+## plot:
+```{r}
+plot(g_class12b)
+```
+
+## five number summary:
+
+### size:
+
+```{r}
+vcount(g_class12b)
+ecount(g_class12b)
+```
+
+### density:
+```{r}
+edge_density(g_class12b)
+```
+
+### components:
+```{r}
+count_components(g_class12b)
+```
+
+### diameter:
+```{r}
+diameter(g_class12b)
+mean_distance(g_class12b)
+```
+
+### clustering:
+```{r}
+transitivity(g_class12b, type="average")
+```
+
+## test the hypothesis that girls have higher degree than boys in this network
+```{r}
+degrees <- degree(g_class12b, mode = "all")
+
+node_data <- data.frame(
+  namenr = V(g_class12b)$name,
+  sex = V(g_class12b)$sex,
+  degree = degrees
+)
+```
+
+```{r}
+boxplot(degree ~ sex, 
+        data = node_data, 
+        main = "Degree Distribution by Gender",
+        xlab = "Sex", 
+        ylab = "Degree",
+        col = c("lightblue", "pink"))
+```
+
+t test: 
+
+```{r}
+t_test_result <- t.test(degree ~ sex, data = node_data)
+print(t_test_result)
+```
+
+We fail to reject the null hypothesis.
+
+### final plot:
+
+```{r}
+node_colors <- ifelse(V(g_class12b)$sex == 1, "skyblue", "salmon")
+node_sizes <- degree(g_class12b, mode = "all") * 2
+plot(g_class12b, 
+     vertex.color = node_colors, 
+     vertex.size = node_sizes,
+     vertex.label = NA,
+     edge.arrow.size = 0.5,
+     main = "Class 12b Friendship Network")
+```
